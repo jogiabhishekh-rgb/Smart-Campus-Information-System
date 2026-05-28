@@ -41,24 +41,31 @@ class Student:
 
 
 def ensure_storage() -> None:
-    DATA_DIR.mkdir(exist_ok=True)
-    REPORTS_DIR.mkdir(exist_ok=True)
+    """Ensure all required directories and files exist."""
+    try:
+        DATA_DIR.mkdir(exist_ok=True, parents=True)
+        REPORTS_DIR.mkdir(exist_ok=True, parents=True)
 
-    if not STUDENTS_FILE.exists():
-        with STUDENTS_FILE.open("w", newline="", encoding="utf-8") as file:
-            writer = csv.DictWriter(file, fieldnames=list(Student.__annotations__.keys()))
-            writer.writeheader()
+        if not STUDENTS_FILE.exists():
+            with STUDENTS_FILE.open("w", newline="", encoding="utf-8") as file:
+                writer = csv.DictWriter(file, fieldnames=list(Student.__annotations__.keys()))
+                writer.writeheader()
 
-    if not ENROLLMENTS_FILE.exists():
-        ENROLLMENTS_FILE.write_text("{}", encoding="utf-8")
+        if not ENROLLMENTS_FILE.exists():
+            ENROLLMENTS_FILE.write_text("{}", encoding="utf-8")
 
-    if not ACADEMIC_RECORDS_FILE.exists():
-        with ACADEMIC_RECORDS_FILE.open("w", newline="", encoding="utf-8") as file:
-            writer = csv.writer(file)
-            writer.writerow(["student_id", "course_code", "internal_marks", "external_marks", "total", "grade"])
+        if not ACADEMIC_RECORDS_FILE.exists():
+            with ACADEMIC_RECORDS_FILE.open("w", newline="", encoding="utf-8") as file:
+                writer = csv.writer(file)
+                writer.writerow(["student_id", "course_code", "internal_marks", "external_marks", "total", "grade"])
+    except OSError as error:
+        print(f"Error ensuring storage: {error}")
 
 
 def calculate_grade(marks: float) -> str:
+    """Calculate grade based on marks. Marks should be between 0 and 100."""
+    if marks < 0:
+        return "Invalid"
     if marks >= 90:
         return "A+"
     if marks >= 80:
@@ -75,47 +82,69 @@ def calculate_grade(marks: float) -> str:
 
 
 def calculate_fee(course_codes: list[str], scholarship_percent: float = 0) -> float:
+    """Calculate total fee for given course codes with optional scholarship."""
     total = sum(COURSES[code]["fee"] for code in course_codes if code in COURSES)
     discount = total * (scholarship_percent / 100)
-    return total - discount
+    return max(0, total - discount)
 
 
 def load_students() -> list[Student]:
+    """Load all students from CSV file."""
     ensure_storage()
     students: list[Student] = []
-    with STUDENTS_FILE.open("r", newline="", encoding="utf-8") as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            students.append(
-                Student(
-                    student_id=row["student_id"],
-                    name=row["name"],
-                    department=row["department"],
-                    semester=int(row["semester"]),
-                    marks=float(row["marks"]),
-                    attendance=float(row["attendance"]),
-                )
-            )
+    try:
+        with STUDENTS_FILE.open("r", newline="", encoding="utf-8") as file:
+            reader = csv.DictReader(file)
+            if reader.fieldnames is None:
+                return students
+            for row in reader:
+                if row and all(key in row for key in Student.__annotations__.keys()):
+                    students.append(
+                        Student(
+                            student_id=row["student_id"],
+                            name=row["name"],
+                            department=row["department"],
+                            semester=int(row["semester"]),
+                            marks=float(row["marks"]),
+                            attendance=float(row["attendance"]),
+                        )
+                    )
+    except (ValueError, KeyError, OSError) as error:
+        print(f"Error loading students: {error}")
     return students
 
 
 def save_students(students: list[Student]) -> None:
-    with STUDENTS_FILE.open("w", newline="", encoding="utf-8") as file:
-        writer = csv.DictWriter(file, fieldnames=list(Student.__annotations__.keys()))
-        writer.writeheader()
-        writer.writerows(asdict(student) for student in students)
+    """Save students to CSV file."""
+    try:
+        with STUDENTS_FILE.open("w", newline="", encoding="utf-8") as file:
+            writer = csv.DictWriter(file, fieldnames=list(Student.__annotations__.keys()))
+            writer.writeheader()
+            writer.writerows(asdict(student) for student in students)
+    except OSError as error:
+        print(f"Error saving students: {error}")
 
 
 def load_enrollments() -> dict[str, list[str]]:
+    """Load enrollments from JSON file."""
     ensure_storage()
-    return json.loads(ENROLLMENTS_FILE.read_text(encoding="utf-8"))
+    try:
+        return json.loads(ENROLLMENTS_FILE.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as error:
+        print(f"Error loading enrollments: {error}")
+        return {}
 
 
 def save_enrollments(enrollments: dict[str, list[str]]) -> None:
-    ENROLLMENTS_FILE.write_text(json.dumps(enrollments, indent=2), encoding="utf-8")
+    """Save enrollments to JSON file."""
+    try:
+        ENROLLMENTS_FILE.write_text(json.dumps(enrollments, indent=2), encoding="utf-8")
+    except OSError as error:
+        print(f"Error saving enrollments: {error}")
 
 
 def input_float(prompt: str, minimum: float = 0, maximum: float = 100) -> float:
+    """Get float input from user with validation."""
     while True:
         try:
             value = float(input(prompt))
@@ -127,6 +156,7 @@ def input_float(prompt: str, minimum: float = 0, maximum: float = 100) -> float:
 
 
 def input_int(prompt: str, minimum: int = 1, maximum: int = 8) -> int:
+    """Get integer input from user with validation."""
     while True:
         try:
             value = int(input(prompt))
@@ -138,6 +168,7 @@ def input_int(prompt: str, minimum: int = 1, maximum: int = 8) -> int:
 
 
 def register_student() -> None:
+    """Register a new student."""
     students = load_students()
     student_id = input("Student ID: ").strip().upper()
     if any(student.student_id == student_id for student in students):
@@ -158,6 +189,7 @@ def register_student() -> None:
 
 
 def show_courses() -> None:
+    """Display all available courses."""
     print("\nAvailable Courses")
     print("-" * 68)
     for code, course in COURSES.items():
@@ -165,6 +197,7 @@ def show_courses() -> None:
 
 
 def enroll_student() -> None:
+    """Enroll a student in courses."""
     students = load_students()
     enrollments = load_enrollments()
     student_id = input("Student ID: ").strip().upper()
@@ -187,6 +220,7 @@ def enroll_student() -> None:
 
 
 def list_students(students: list[Student] | None = None) -> None:
+    """Display student records."""
     students = students if students is not None else load_students()
     if not students:
         print("No student records found.")
@@ -205,8 +239,12 @@ def list_students(students: list[Student] | None = None) -> None:
 
 
 def search_students() -> None:
+    """Search for students by ID, name, or department."""
     students = load_students()
     term = input("Search by ID, name, or department: ").strip().lower()
+    if not term:
+        print("Search term cannot be empty.")
+        return
     results = [
         student
         for student in students
@@ -218,6 +256,7 @@ def search_students() -> None:
 
 
 def sort_students() -> None:
+    """Sort and display students by selected criteria."""
     students = load_students()
     print("Sort by: 1. Name  2. Marks  3. Attendance  4. Semester")
     choice = input("Choice: ").strip()
@@ -232,6 +271,7 @@ def sort_students() -> None:
 
 
 def fee_menu() -> None:
+    """Calculate and display fees for a student."""
     enrollments = load_enrollments()
     student_id = input("Student ID: ").strip().upper()
     course_codes = enrollments.get(student_id, [])
@@ -246,6 +286,7 @@ def fee_menu() -> None:
 
 
 def add_academic_record() -> None:
+    """Add academic record for a student in a course."""
     students = load_students()
     student_id = input("Student ID: ").strip().upper()
     if not any(student.student_id == student_id for student in students):
@@ -262,25 +303,29 @@ def add_academic_record() -> None:
     external = input_float("External marks out of 60: ", 0, 60)
     total = internal + external
 
-    with ACADEMIC_RECORDS_FILE.open("a", newline="", encoding="utf-8") as file:
-        writer = csv.writer(file)
-        writer.writerow([student_id, course_code, internal, external, total, calculate_grade(total)])
-
-    print(f"Academic record saved. Total: {total:.2f}, Grade: {calculate_grade(total)}")
+    try:
+        with ACADEMIC_RECORDS_FILE.open("a", newline="", encoding="utf-8") as file:
+            writer = csv.writer(file)
+            writer.writerow([student_id, course_code, internal, external, total, calculate_grade(total)])
+        print(f"Academic record saved. Total: {total:.2f}, Grade: {calculate_grade(total)}")
+    except OSError as error:
+        print(f"Error saving academic record: {error}")
 
 
 def scan_directory() -> None:
+    """Scan and display contents of a directory."""
     directory = input("Directory to scan (blank for project data folder): ").strip()
     target = Path(directory) if directory else DATA_DIR
 
     try:
         print(f"\nScanning: {target.resolve()}")
+        if not target.exists():
+            print("Directory not found.")
+            return
         for path in sorted(target.iterdir()):
             kind = "Directory" if path.is_dir() else "File"
             size = "-" if path.is_dir() else f"{path.stat().st_size} bytes"
             print(f"{kind:<10} {path.name:<35} {size}")
-    except FileNotFoundError:
-        print("Directory not found.")
     except PermissionError:
         print("Permission denied while scanning this directory.")
     except OSError as error:
@@ -288,6 +333,7 @@ def scan_directory() -> None:
 
 
 def generate_analytics() -> None:
+    """Generate and display performance analytics."""
     try:
         import numpy as np
         import pandas as pd
@@ -302,37 +348,45 @@ def generate_analytics() -> None:
         seed_sample_data()
         students = load_students()
 
-    dataframe = pd.DataFrame([asdict(student) for student in students])
-    marks = np.array(dataframe["marks"], dtype=float)
-    attendance = np.array(dataframe["attendance"], dtype=float)
+    if not students:
+        print("No student data available for analytics.")
+        return
 
-    print("\nPerformance Analytics")
-    print("-" * 40)
-    print(f"Average marks: {np.mean(marks):.2f}")
-    print(f"Highest marks: {np.max(marks):.2f}")
-    print(f"Lowest marks: {np.min(marks):.2f}")
-    print(f"Average attendance: {np.mean(attendance):.2f}%")
-    print("\nDepartment-wise average marks")
-    print(dataframe.groupby("department")["marks"].mean().round(2).to_string())
+    try:
+        dataframe = pd.DataFrame([asdict(student) for student in students])
+        marks = np.array(dataframe["marks"], dtype=float)
+        attendance = np.array(dataframe["attendance"], dtype=float)
 
-    REPORTS_DIR.mkdir(exist_ok=True)
-    chart_path = REPORTS_DIR / "student_performance.png"
-    plt.figure(figsize=(9, 5))
-    plt.bar(dataframe["name"], dataframe["marks"], color="#2f6f6d")
-    plt.axhline(float(np.mean(marks)), color="#c44e52", linestyle="--", label="Average")
-    plt.title("Student Performance Analytics")
-    plt.xlabel("Student")
-    plt.ylabel("Marks")
-    plt.ylim(0, 100)
-    plt.xticks(rotation=30, ha="right")
-    plt.legend()
-    plt.tight_layout()
-    plt.savefig(chart_path)
-    plt.close()
-    print(f"\nChart saved to: {chart_path}")
+        print("\nPerformance Analytics")
+        print("-" * 40)
+        print(f"Average marks: {np.mean(marks):.2f}")
+        print(f"Highest marks: {np.max(marks):.2f}")
+        print(f"Lowest marks: {np.min(marks):.2f}")
+        print(f"Average attendance: {np.mean(attendance):.2f}%")
+        print("\nDepartment-wise average marks")
+        print(dataframe.groupby("department")["marks"].mean().round(2).to_string())
+
+        REPORTS_DIR.mkdir(exist_ok=True, parents=True)
+        chart_path = REPORTS_DIR / "student_performance.png"
+        plt.figure(figsize=(9, 5))
+        plt.bar(dataframe["name"], dataframe["marks"], color="#2f6f6d")
+        plt.axhline(float(np.mean(marks)), color="#c44e52", linestyle="--", label="Average")
+        plt.title("Student Performance Analytics")
+        plt.xlabel("Student")
+        plt.ylabel("Marks")
+        plt.ylim(0, 100)
+        plt.xticks(rotation=30, ha="right")
+        plt.legend()
+        plt.tight_layout()
+        plt.savefig(chart_path)
+        plt.close()
+        print(f"\nChart saved to: {chart_path}")
+    except (ValueError, KeyError, OSError) as error:
+        print(f"Error generating analytics: {error}")
 
 
 def seed_sample_data() -> None:
+    """Create sample student and enrollment data."""
     students = [
         Student("SC001", "Aarav Sharma", "IT", 3, 88, 92),
         Student("SC002", "Diya Patel", "CSE", 3, 76, 84),
@@ -354,6 +408,7 @@ def seed_sample_data() -> None:
 
 
 def show_summary() -> None:
+    """Display campus-wide summary statistics."""
     students = load_students()
     enrollments = load_enrollments()
     print("\nSmart Campus Summary")
@@ -366,6 +421,7 @@ def show_summary() -> None:
 
 
 def menu() -> None:
+    """Display main menu and handle user choices."""
     ensure_storage()
     actions = {
         "1": register_student,
@@ -404,7 +460,10 @@ def menu() -> None:
 
         action = actions.get(choice)
         if action:
-            action()
+            try:
+                action()
+            except Exception as error:
+                print(f"An error occurred: {error}")
         else:
             print("Invalid choice.")
 
