@@ -6,7 +6,6 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from statistics import mean
 
-
 BASE_DIR = Path(__file__).resolve().parent
 DATA_DIR = BASE_DIR / "data"
 STUDENTS_FILE = DATA_DIR / "students.csv"
@@ -20,7 +19,6 @@ COURSES = {
     "WD103": {"name": "Web Development", "credits": 3, "fee": 4000},
     "AI104": {"name": "AI Fundamentals", "credits": 4, "fee": 5500},
 }
-
 
 @dataclass
 class Student:
@@ -38,7 +36,6 @@ class Student:
     @property
     def result(self) -> str:
         return "Pass" if self.marks >= 40 and self.attendance >= 75 else "Needs Improvement"
-
 
 def ensure_storage() -> None:
     """Ensure all required directories and files exist."""
@@ -61,7 +58,6 @@ def ensure_storage() -> None:
     except OSError as error:
         print(f"Error ensuring storage: {error}")
 
-
 def calculate_grade(marks: float) -> str:
     """Calculate grade based on marks. Marks should be between 0 and 100."""
     if marks < 0:
@@ -80,13 +76,11 @@ def calculate_grade(marks: float) -> str:
         return "E"
     return "F"
 
-
 def calculate_fee(course_codes: list[str], scholarship_percent: float = 0) -> float:
     """Calculate total fee for given course codes with optional scholarship."""
     total = sum(COURSES[code]["fee"] for code in course_codes if code in COURSES)
     discount = total * (scholarship_percent / 100)
     return max(0, total - discount)
-
 
 def load_students() -> list[Student]:
     """Load all students from CSV file."""
@@ -113,7 +107,6 @@ def load_students() -> list[Student]:
         print(f"Error loading students: {error}")
     return students
 
-
 def save_students(students: list[Student]) -> None:
     """Save students to CSV file."""
     try:
@@ -124,7 +117,6 @@ def save_students(students: list[Student]) -> None:
     except OSError as error:
         print(f"Error saving students: {error}")
 
-
 def load_enrollments() -> dict[str, list[str]]:
     """Load enrollments from JSON file."""
     ensure_storage()
@@ -134,14 +126,12 @@ def load_enrollments() -> dict[str, list[str]]:
         print(f"Error loading enrollments: {error}")
         return {}
 
-
 def save_enrollments(enrollments: dict[str, list[str]]) -> None:
     """Save enrollments to JSON file."""
     try:
         ENROLLMENTS_FILE.write_text(json.dumps(enrollments, indent=2), encoding="utf-8")
     except OSError as error:
         print(f"Error saving enrollments: {error}")
-
 
 def input_float(prompt: str, minimum: float = 0, maximum: float = 100) -> float:
     """Get float input from user with validation."""
@@ -154,7 +144,6 @@ def input_float(prompt: str, minimum: float = 0, maximum: float = 100) -> float:
         except ValueError:
             print("Enter a valid number.")
 
-
 def input_int(prompt: str, minimum: int = 1, maximum: int = 8) -> int:
     """Get integer input from user with validation."""
     while True:
@@ -165,7 +154,6 @@ def input_int(prompt: str, minimum: int = 1, maximum: int = 8) -> int:
             print(f"Enter a value between {minimum} and {maximum}.")
         except ValueError:
             print("Enter a valid integer.")
-
 
 def register_student() -> None:
     """Register a new student."""
@@ -187,14 +175,12 @@ def register_student() -> None:
     save_students(students)
     print(f"Registered {student.name}. Grade: {student.grade}, Result: {student.result}")
 
-
 def show_courses() -> None:
     """Display all available courses."""
     print("\nAvailable Courses")
     print("-" * 68)
     for code, course in COURSES.items():
         print(f"{code:6} {course['name']:<25} Credits: {course['credits']} Fee: Rs.{course['fee']}")
-
 
 def enroll_student() -> None:
     """Enroll a student in courses."""
@@ -218,7 +204,6 @@ def enroll_student() -> None:
     save_enrollments(enrollments)
     print(f"Enrollment updated. Courses: {', '.join(enrollments[student_id])}")
 
-
 def list_students(students: list[Student] | None = None) -> None:
     """Display student records."""
     students = students if students is not None else load_students()
@@ -237,7 +222,6 @@ def list_students(students: list[Student] | None = None) -> None:
             f"{student.grade:<7} {student.result}"
         )
 
-
 def search_students() -> None:
     """Search for students by ID, name, or department."""
     students = load_students()
@@ -254,7 +238,6 @@ def search_students() -> None:
     ]
     list_students(results)
 
-
 def sort_students() -> None:
     """Sort and display students by selected criteria."""
     students = load_students()
@@ -269,7 +252,6 @@ def sort_students() -> None:
     key_name, reverse = sort_map.get(choice, ("name", False))
     list_students(sorted(students, key=lambda student: getattr(student, key_name), reverse=reverse))
 
-
 def fee_menu() -> None:
     """Calculate and display fees for a student."""
     enrollments = load_enrollments()
@@ -283,7 +265,6 @@ def fee_menu() -> None:
     payable = calculate_fee(course_codes, scholarship)
     print(f"Courses: {', '.join(course_codes)}")
     print(f"Total payable fee after scholarship: Rs.{payable:.2f}")
-
 
 def add_academic_record() -> None:
     """Add academic record for a student in a course."""
@@ -311,7 +292,6 @@ def add_academic_record() -> None:
     except OSError as error:
         print(f"Error saving academic record: {error}")
 
-
 def scan_directory() -> None:
     """Scan and display contents of a directory."""
     directory = input("Directory to scan (blank for project data folder): ").strip()
@@ -330,7 +310,6 @@ def scan_directory() -> None:
         print("Permission denied while scanning this directory.")
     except OSError as error:
         print(f"Could not scan directory: {error}")
-
 
 def generate_analytics() -> None:
     """Generate and display performance analytics."""
@@ -384,7 +363,6 @@ def generate_analytics() -> None:
     except (ValueError, KeyError, OSError) as error:
         print(f"Error generating analytics: {error}")
 
-
 def seed_sample_data() -> None:
     """Create sample student and enrollment data."""
     students = [
@@ -406,7 +384,6 @@ def seed_sample_data() -> None:
     )
     print("Sample student and enrollment data created.")
 
-
 def show_summary() -> None:
     """Display campus-wide summary statistics."""
     students = load_students()
@@ -418,7 +395,6 @@ def show_summary() -> None:
     if students:
         print(f"Average marks: {mean(student.marks for student in students):.2f}")
         print(f"Average attendance: {mean(student.attendance for student in students):.2f}%")
-
 
 def menu() -> None:
     """Display main menu and handle user choices."""
@@ -466,7 +442,6 @@ def menu() -> None:
                 print(f"An error occurred: {error}")
         else:
             print("Invalid choice.")
-
 
 if __name__ == "__main__":
     menu()
